@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
@@ -33,7 +34,8 @@ def annotate_event(event, template_timestamps=False):
             return None
 
         # otherwise, return mapped event
-        rdf_event = map_observation_to_rdf(event, template_timestamps=template_timestamps)
+        rdf_event = map_observation_to_rdf(
+            event, template_timestamps=template_timestamps)
         return remove_whitespace(rdf_event) if rdf_event is not None else rdf_event
 
     except Exception as e:
@@ -80,10 +82,16 @@ def map_observation(metric_id,
 
     # create RDF data
     if metric_group == "CONTEXT":
-        return OBSERVATION_TEMPLATE_CONTEXT % (source_id,
-                                               patient_id, metric_id, uuid,
-                                               patient_id, metric_id, uuid,
-                                               metric_id, time_str, str(timestamp_utc), value_str)
+        return OBSERVATION_TEMPLATE_CONTEXT_DAHCC % (uuid,
+                                                     uuid, source_id,
+                                                     uuid, metric_id,
+                                                     uuid, str(timestamp_utc),
+                                                     uuid, value
+                                                     )
+        # return OBSERVATION_TEMPLATE_CONTEXT % (source_id,
+        #                                        patient_id, metric_id, uuid,
+        #                                        patient_id, metric_id, uuid,
+        #                                        metric_id, time_str, str(timestamp_utc), value_str)
     elif metric_group == "WEARABLE":
         return OBSERVATION_TEMPLATE_WEARABLE % (source_id,
                                                 patient_id, metric_id, uuid,
@@ -114,6 +122,24 @@ def update_source_id(source_id, metric_id):
 
 
 # MAPPING TEMPLATES
+
+EXAMPLE_OBSERVATION = """
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs0> <http://rdfs.org/ns/void#inDataset> <https://dahcc.idlab.ugent.be/Protego/_participant1> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs0> <https://saref.etsi.org/core/measurementMadeBy> <https://dahcc.idlab.ugent.be/Homelab/SensorsAndActuators/70:ee:50:67:30:b2> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs0> <https://saref.etsi.org/core/relatesToProperty> <https://dahcc.idlab.ugent.be/Homelab/SensorsAndActuators/org.dyamand.types.common.AtmosphericPressure> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs0> <https://saref.etsi.org/core/hasTimestamp> "2022-01-03T09:04:55.000000"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs0> <https://saref.etsi.org/core/hasValue> "1013.1"^^<http://www.w3.org/2001/XMLSchema#float> 
+
+"""
+
+OBSERVATION_TEMPLATE_CONTEXT_DAHCC = """
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <http://rdfs.org/ns/void#inDataset> <https://dahcc.idlab.ugent.be/Protego/_participant1> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/measurementMadeBy> <https://dahcc.idlab.ugent.be/Homelab/SensorsAndActuators/%s> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/relatesToProperty> <https://dahcc.idlab.ugent.be/Homelab/SensorsAndActuators/%s> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/hasTimestamp> "%s"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/hasValue> "%s"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+
+"""
 
 OBSERVATION_TEMPLATE_CONTEXT = """
 <https://dahcc.idlab.ugent.be/Homelab/SensorsAndActuators/%s>
@@ -283,18 +309,33 @@ if __name__ == '__main__':
         metricId = dataframe['Metric'][index]
         value = dataframe['Value'][index]
         if value == "1":
-            newValue = True
+            newValue = "true"
         else:
-            newValue = False
+            newValue = "false"
         datetimeValue = dataframe['Timestamp'][index]
+        datetimeValueString = str(datetimeValue)
+        valueOfHour = int(datetimeValueString[0:2])
+        valueOfMinute = int(datetimeValueString[3:5])
+        valueOfSeconds = int(datetimeValueString[6:8])
+
+        if (datetimeValueString[9:12] == ''):
+            continue
+        else:
+            valueOfMiliSeconds = int(datetimeValueString[9:12])
+
+        currentDate = datetime.now()
+        year = int(currentDate.strftime("%Y"))
+        month = int(currentDate.strftime("%m"))
+        day = int(currentDate.strftime("%d"))
+
         try:
-            random = datetime.strptime(str(datetimeValue), '%H:%M:%S.%f')
-            timeValue = random.timestamp()
-        except:
-            pass
+            epoch = datetime(year=year, month=month, day=day, hour=valueOfHour, minute=valueOfMinute,
+                             second=valueOfSeconds, microsecond=valueOfMiliSeconds).strftime('%s')
+            timeValue = epoch
+        except Exception as e:
+            continue
         finally:
             print('Done')
-        # print(datetimeValue)
 
         json_event = {
             "sourceId": source,
@@ -304,5 +345,6 @@ if __name__ == '__main__':
         }
         _result = annotate_event(json_event)
         with open('/home/kush/Code/feather-RDF-mapper/data/rdfData/dataset_participant1.nt', 'a') as file:
+            pass
             file.write('\n')
             file.write(_result)
