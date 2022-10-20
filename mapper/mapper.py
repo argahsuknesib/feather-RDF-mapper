@@ -71,8 +71,8 @@ def map_observation(metric_id,
     # generate timestamp
     uuid = generate_uuid(metric_id, patient_id)
     if timestamp:
-        timestamp_utc = int(timestamp)
-        time_str = convert_timestamp_to_string(timestamp)
+        timestamp_utc = timestamp
+        time_str =timestamp
     else:
         timestamp_utc = TEMPLATE_TIME_MS
         time_str = TEMPLATE_TIME_STR
@@ -314,26 +314,27 @@ if __name__ == '__main__':
             newValue = "false"
         datetimeValue = dataframe['Timestamp'][index]
         datetimeValueString = str(datetimeValue)
-        valueOfHour = int(datetimeValueString[0:2])
-        valueOfMinute = int(datetimeValueString[3:5])
-        valueOfSeconds = int(datetimeValueString[6:8])
+        valueOfHour = datetimeValueString[0:2]
+        valueOfMinute = datetimeValueString[3:5]
+        valueOfSeconds = datetimeValueString[6:8]
 
         if (datetimeValueString[9:12] == ''):
             continue
         else:
-            valueOfMiliSeconds = int(datetimeValueString[9:12])
+            valueOfMiliSeconds = datetimeValueString[9:15]
 
         currentDate = datetime.now()
-        year = int(currentDate.strftime("%Y"))
-        month = int(currentDate.strftime("%m"))
-        day = int(currentDate.strftime("%d"))
+        year = currentDate.strftime("%Y")
+        month = currentDate.strftime("%m")
+        day = currentDate.strftime("%d")
 
         try:
-            epoch = datetime(year=year, month=month, day=day, hour=valueOfHour, minute=valueOfMinute,
-                             second=valueOfSeconds, microsecond=valueOfMiliSeconds).strftime('%s')
-            timeValue = epoch
+            timeValue = str(year + '-' + month + '-' + day + 'T' + valueOfHour + ':' + valueOfMinute + ':' + valueOfSeconds + '.' + valueOfMiliSeconds)
+            # epoch = datetime(year=year, month=month, day=day, hour=valueOfHour, minute=valueOfMinute,
+            #                  second=valueOfSeconds, microsecond=valueOfMiliSeconds).strftime('%s')
+            # timeValue = epoch
         except Exception as e:
-            continue
+            print(e)
         finally:
             print('Done')
 
