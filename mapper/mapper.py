@@ -84,7 +84,7 @@ def map_observation(metric_id,
     if metric_group == "CONTEXT":
         return OBSERVATION_TEMPLATE_CONTEXT_DAHCC % (uuid,
                                                      uuid, source_id,
-                                                     uuid, metric_id,
+                                                     uuid, uuid, metric_id,
                                                      uuid, str(timestamp_utc),
                                                      uuid, value
                                                      )
@@ -93,10 +93,18 @@ def map_observation(metric_id,
         #                                        patient_id, metric_id, uuid,
         #                                        metric_id, time_str, str(timestamp_utc), value_str)
     elif metric_group == "WEARABLE":
-        return OBSERVATION_TEMPLATE_WEARABLE % (source_id,
-                                                patient_id, metric_id, uuid,
-                                                patient_id, metric_id, uuid,
-                                                metric_id, time_str, str(timestamp_utc), value_str)
+            return OBSERVATION_TEMPLATE_CONTEXT_DAHCC % (uuid,
+                                                     uuid, source_id,
+                                                     uuid, uuid, metric_id,
+                                                     uuid, str(timestamp_utc),
+                                                     uuid, value
+                                                     )
+
+
+        # return OBSERVATION_TEMPLATE_WEARABLE % (source_id,
+        #                                         patient_id, metric_id, uuid,
+        #                                         patient_id, metric_id, uuid,
+        #                                         metric_id, time_str, str(timestamp_utc), value_str)
 
 
 def map_value(value, metric_id):
@@ -135,9 +143,10 @@ EXAMPLE_OBSERVATION = """
 OBSERVATION_TEMPLATE_CONTEXT_DAHCC = """
 <https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <http://rdfs.org/ns/void#inDataset> <https://dahcc.idlab.ugent.be/Protego/_participant1> .
 <https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/measurementMadeBy> <https://dahcc.idlab.ugent.be/Homelab/SensorsAndActuators/%s> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <http://purl.org/dc/terms/isVersionOf> <https://saref.etsi.org/core/Measurement> .
 <https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/relatesToProperty> <https://dahcc.idlab.ugent.be/Homelab/SensorsAndActuators/%s> .
 <https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/hasTimestamp> "%s"^^<http://www.w3.org/2001/XMLSchema#dateTime> .
-<https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/hasValue> "%s"^^<http://www.w3.org/2001/XMLSchema#boolean> .
+<https://dahcc.idlab.ugent.be/Protego/_participant1/obs%s> <https://saref.etsi.org/core/hasValue> "%s"^^<http://www.w3.org/2001/XMLSchema#float> .
 
 """
 
@@ -283,7 +292,7 @@ uuid_map = {}
 
 
 def generate_uuid(metric_id, patient_id):
-    key = '%s.%s' % (patient_id, metric_id)
+    key = '%s' % (patient_id)
     if key not in uuid_map:
         uuid_map[key] = 0
     result = uuid_map[key]
@@ -297,21 +306,27 @@ def remove_whitespace(given_str):
 
 # MAIN FUNCTION FOR TESTING PURPOSES
 
-file = pandas.read_feather('../data/dataset_participant1.feather')
-metric = 'people.presence.detected'
+file = pandas.read_feather('data/dataset_participant3.feather')
 
-# print(file.head())
-dataframe = file[file['Metric'] == 'people.presence.detected']
+heartRateSensor = ['wearable.bvp'];
+accelerationSensorNames = ['wearable.acceleration.x', 'wearable.acceleration.y', 'wearable.acceleration.z']
+
+numberOfObservations = 500
+
+dataframe_heart_rate = file[file['Metric'] == heartRateSensor[0]].head(numberOfObservations)
+dataframe_acc_x = file[file['Metric'] == accelerationSensorNames[0]].head(numberOfObservations)
+dataframe_acc_y = file[file['Metric'] == accelerationSensorNames[1]].head(numberOfObservations)
+dataframe_acc_z = file[file['Metric'] == accelerationSensorNames[2]].head(numberOfObservations)
+
+dataframe_heart_rate_with_x = dataframe_heart_rate.append(dataframe_acc_x)
+dataframe_heart_rate_with_x_y = dataframe_heart_rate_with_x.append(dataframe_acc_y)
+dataframe = dataframe_heart_rate_with_x_y.append(dataframe_acc_z)
 
 if __name__ == '__main__':
     for index in dataframe.index:
         source = dataframe['Sensor'][index]
         metricId = dataframe['Metric'][index]
         value = dataframe['Value'][index]
-        if value == "1":
-            newValue = "true"
-        else:
-            newValue = "false"
         datetimeValue = dataframe['Timestamp'][index]
         datetimeValueString = str(datetimeValue)
         valueOfHour = datetimeValueString[0:2]
@@ -321,7 +336,7 @@ if __name__ == '__main__':
         if (datetimeValueString[9:12] == ''):
             continue
         else:
-            valueOfMiliSeconds = datetimeValueString[9:15]
+            valueOfMiliSeconds = datetimeValueString[9:13]
 
         currentDate = datetime.now()
         year = currentDate.strftime("%Y")
@@ -330,9 +345,6 @@ if __name__ == '__main__':
 
         try:
             timeValue = str(year + '-' + month + '-' + day + 'T' + valueOfHour + ':' + valueOfMinute + ':' + valueOfSeconds + '.' + valueOfMiliSeconds)
-            # epoch = datetime(year=year, month=month, day=day, hour=valueOfHour, minute=valueOfMinute,
-            #                  second=valueOfSeconds, microsecond=valueOfMiliSeconds).strftime('%s')
-            # timeValue = epoch
         except Exception as e:
             print(e)
         finally:
@@ -340,12 +352,12 @@ if __name__ == '__main__':
 
         json_event = {
             "sourceId": source,
-            "metricId": "people.presence.detected",
-            "value": newValue,
+            "metricId": metricId,
+            "value": value,
             "timestamp": timeValue
         }
         _result = annotate_event(json_event)
-        with open('/home/kush/Code/feather-RDF-mapper/data/rdfData/dataset_participant1.nt', 'a') as file:
+        with open('/home/kush/Code/feather-RDF-mapper/data/rdfData/dataset_participant3.nt', 'a') as file:
             pass
             file.write('\n')
             file.write(_result)
