@@ -4,7 +4,7 @@ A simple mapper to map and convert .feather data files into RDF triples in a spe
 
 ## Usage
 
-Note: It is highly advised to use a venv with the required packages installed, as described in the [requirements][./requirements.txt] file.
+Note: It is highly advised to use a venv with the required packages installed, as described in the [requirements](./requirements.txt) file.
 
 - Specify the name of the .feather file and the .nt file in the `mapper.py` file inside the mapper folder.
 - Run the file as a script with,
