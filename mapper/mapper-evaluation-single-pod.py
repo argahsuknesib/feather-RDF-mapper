@@ -304,62 +304,49 @@ def remove_whitespace(given_str):
     return ' '.join(given_str.split())
 
 
-# MAIN FUNCTION FOR TESTING PURPOSES
+def map_feather(file, sensors_to_map):
+    file = pandas.read_feather(file)
+    for sensor in sensors_to_map:
+        df = file[file['Metric'] == sensor]
+        for index in df.index:
+            source = (df['Sensor'][index])
+            metric = (df['Metric'][index])
+            value = (df['Value'][index])
+            timestamp = (df['Timestamp'][index])
+            timestamp_str = str(timestamp)
+            hour = timestamp_str[0:2]
+            minute = timestamp_str[3:5]
+            second = timestamp_str[6:8]
+            millisecond = '000Z'
+            if (timestamp_str[9:12] == ''):
+                continue
+            else:
+                millisecond = timestamp_str[9:13] + 'Z'
 
-file = pandas.read_feather('/home/kush/Code/RSP/solid-stream-aggregator-evaluation/data/feather/participant6.feather')
 
-# heartRateSensor = ['wearable.bvp'];
-temperature = ['org.dyamand.types.common.Temperature']
-# accelerationSensorNames = ['wearable.acceleration.x', 'wearable.acceleration.y', 'wearable.acceleration.z']
-numberOfObservations = 500
-dataframe = file[file['Metric'] == temperature[0]].head(numberOfObservations)
+            current_time = datetime.now()
+            year = current_time.strftime("%Y")
+            month = current_time.strftime("%m")
+            day = current_time.strftime("%d")
 
-# dataframe_heart_rate = file[file['Metric'] == heartRateSensor[0]].head(numberOfObservations)
-# dataframe_acc_x = file[file['Metric'] == accelerationSensorNames[0]].head(numberOfObservations)
-# dataframe_acc_y = file[file['Metric'] == accelerationSensorNames[1]].head(numberOfObservations)
-# dataframe_acc_z = file[file['Metric'] == accelerationSensorNames[2]].head(numberOfObservations)
+            try: 
+                time_value = str(year) + '-' + str(month) + '-' + str(day) + 'T' + str(hour) + ':' + str(minute) + ':' + str(second) + '.' + str(millisecond)
+            except Exception as e:
+                print('Exception is' + e)
+            
+            event = {
+                'sourceId': source,
+                'metricId': metric,
+                'value': value,
+                'timestamp': time_value
+            }
+            result = annotate_event(event)          
 
-# dataframe_heart_rate_with_x = dataframe_heart_rate.append(dataframe_acc_x)
-# dataframe_heart_rate_with_x_y = dataframe_heart_rate_with_x.append(dataframe_acc_y)
-# dataframe = dataframe_heart_rate_with_x_y.append(dataframe_acc_z)
-
+            with open('/home/kush/Code/feather-RDF-mapper/data/rdfData/participant6.nt', 'a') as file:
+                pass
+                file.write('\n')
+                file.write(result)
 if __name__ == '__main__':
-    for index in dataframe.index:
-        source = dataframe['Sensor'][index]
-        metricId = dataframe['Metric'][index]
-        value = dataframe['Value'][index]
-        datetimeValue = dataframe['Timestamp'][index]
-        datetimeValueString = str(datetimeValue)
-        valueOfHour = datetimeValueString[0:2]
-        valueOfMinute = datetimeValueString[3:5]
-        valueOfSeconds = datetimeValueString[6:8]
-        valueOfMiliSeconds = '000Z'
-        # if (datetimeValueString[9:12] == ''):
-        #     continue
-        # else:
-        #     valueOfMiliSeconds = datetimeValueString[9:13]
-
-        currentDate = datetime.now()
-        year = currentDate.strftime("%Y")
-        month = currentDate.strftime("%m")
-        day = currentDate.strftime("%d")
-
-        try:
-            timeValue = str(year + '-' + month + '-' + day + 'T' + valueOfHour + ':' + valueOfMinute + ':' + valueOfSeconds + '.' + valueOfMiliSeconds)
-            print(timeValue)
-        except Exception as e:
-            print('Exception is' + e)
-        finally:
-            print('Done')
-
-        json_event = {
-            "sourceId": source,
-            "metricId": metricId,
-            "value": value,
-            "timestamp": timeValue
-        }
-        result = annotate_event(json_event)
-        with open('/home/kush/Code/RSP/solid-stream-aggregator-evaluation/data/rdf/participant6/temperature.nt', 'a') as file:
-            pass
-            file.write('\n')
-            file.write(result)
+    file = 'data/dataset_participant6.feather'  
+    sensors = ['wearable.bvp']
+    map_feather(file= file, sensors_to_map= sensors)
